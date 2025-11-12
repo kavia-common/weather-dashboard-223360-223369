@@ -11,7 +11,7 @@ A modern React weather dashboard with Ocean Professional theme. Features a debou
 
 Create a `.env` file (see `.env.example`):
 
-- `REACT_APP_API_BASE` (required): Base URL for API calls (e.g., http://localhost:8080 or /api). No trailing slash recommended.
+- `REACT_APP_API_BASE` (required): Base URL for API calls (e.g., http://localhost:8080 or /api). No trailing slash recommended. Absolute URLs are used as-is; relative paths (like `/api`) will use the frontend origin and work with CRA proxy.
 - `REACT_APP_DEFAULT_CITY` (optional): Default city to load on startup (e.g., San Francisco).
 
 Other environment variables may exist in this container but are not required for this UI to run.

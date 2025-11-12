@@ -38,7 +38,50 @@ function App() {
         }),
       ]);
       setCurrent(cw);
-      setForecast(Array.isArray(fc?.list) ? fc.list : (Array.isArray(fc) ? fc : []));
+      // Normalize forecast:
+      // - If fc.list exists (e.g., OpenWeather 3h list), group roughly by day selecting min/max.
+      // - If fc is already an array of days, use as-is.
+      let normalized = [];
+      if (Array.isArray(fc?.list)) {
+        const byDay = {};
+        fc.list.forEach((item) => {
+          const dateKey = (() => {
+            try {
+              const d = item.dt ? new Date(item.dt * 1000) : new Date(item.dt_txt || item.date || item.time);
+              return d.toISOString().slice(0, 10);
+            } catch {
+              return 'unknown';
+            }
+          })();
+          if (!byDay[dateKey]) {
+            byDay[dateKey] = {
+              dt: item.dt || (item.dt_txt ? Math.floor(new Date(item.dt_txt).getTime() / 1000) : Date.now() / 1000),
+              icon: item.weather && item.weather[0]?.icon,
+              min: item.main?.temp_min ?? item.temp_min ?? item.main?.temp ?? item.temp,
+              max: item.main?.temp_max ?? item.temp_max ?? item.main?.temp ?? item.temp,
+            };
+          } else {
+            const day = byDay[dateKey];
+            const min = item.main?.temp_min ?? item.temp_min ?? item.main?.temp ?? item.temp;
+            const max = item.main?.temp_max ?? item.temp_max ?? item.main?.temp ?? item.temp;
+            if (typeof min === 'number' && (typeof day.min !== 'number' || min < day.min)) day.min = min;
+            if (typeof max === 'number' && (typeof day.max !== 'number' || max > day.max)) day.max = max;
+            // Prefer midday-ish icon if available; otherwise keep first
+            if (!day.icon && item.weather && item.weather[0]?.icon) {
+              day.icon = item.weather[0].icon;
+            }
+          }
+        });
+        normalized = Object.values(byDay)
+          .filter((d) => d.dt && (typeof d.min === 'number' || typeof d.max === 'number'))
+          .sort((a, b) => a.dt - b.dt)
+          .slice(0, 5);
+      } else if (Array.isArray(fc)) {
+        normalized = fc.slice(0, 5);
+      } else {
+        normalized = [];
+      }
+      setForecast(normalized);
     } finally {
       setLoadingCurrent(false);
       setLoadingForecast(false);

@@ -1,4 +1,5 @@
 //
+//
 // WeatherService - Handles API communication with weather backend/provider
 //
 
@@ -14,9 +15,14 @@ function sanitizeCity(input) {
   return safe.slice(0, 80);
 }
 
-// Build URL ensuring no double slashes and proper encoding of query values
+/**
+ * Build URL ensuring no double slashes and proper encoding of query values.
+ * - If REACT_APP_API_BASE is absolute (http/https), return absolute URL.
+ * - If REACT_APP_API_BASE is relative (e.g., "/api"), return relative URL (for CRA proxy).
+ */
 function buildUrl(path, params = {}) {
-  const base = (API_BASE || '').replace(/\/+$/, '');
+  const isAbsolute = typeof API_BASE === 'string' && /^https?:\/\//i.test(API_BASE);
+  const base = (API_BASE || '').replace(/\/*$/, '');
   const rel = path.startsWith('/') ? path : `/${path}`;
   const url = new URL(base + rel, window.location.origin);
   Object.entries(params).forEach(([k, v]) => {
@@ -24,7 +30,7 @@ function buildUrl(path, params = {}) {
       url.searchParams.set(k, v);
     }
   });
-  return url.toString().replace(window.location.origin, ''); // relative for CRA proxy if configured
+  return isAbsolute ? url.toString() : url.toString().replace(window.location.origin, ''); // relative for CRA proxy if configured
 }
 
 // PUBLIC_INTERFACE
