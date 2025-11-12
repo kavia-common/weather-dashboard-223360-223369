@@ -1,82 +1,76 @@
-# Lightweight React Template for KAVIA
+# Weather Dashboard (Frontend)
 
-This project provides a minimal React template with a clean, modern UI and minimal dependencies.
+Modern React single-page app that lets users search a city and view current conditions plus a 5‑day forecast. Built with a lightweight stack and an Ocean Professional theme.
 
 ## Features
+- Top search bar with validation and keyboard accessibility
+- Current weather summary panel
+- 5‑day forecast cards
+- Loading and error states
+- Environment-driven API base URL
+- Mock mode via feature flag for offline/demo
+- Responsive layout, accessible controls
 
-- **Lightweight**: No heavy UI frameworks - uses only vanilla CSS and React
-- **Modern UI**: Clean, responsive design with KAVIA brand styling
-- **Fast**: Minimal dependencies for quick loading times
-- **Simple**: Easy to understand and modify
+## Quick Start
+1. Install dependencies
+   - npm install
+2. Configure environment
+   - Copy .env.example to .env and adjust values as needed
+3. Run the app
+   - npm start
+4. Build (optional)
+   - npm run build
 
-## Getting Started
+The app runs at http://localhost:3000.
 
-In the project directory, you can run:
+## Environment Variables
+- REACT_APP_API_BASE: Base URL for the weather backend (e.g., https://api.example.com)
+- REACT_APP_FEATURE_FLAGS: Comma-separated flags. To enable mock mode add: mockWeather=true
 
-### `npm start`
+Example:
+REACT_APP_API_BASE=https://api.example.com
+REACT_APP_FEATURE_FLAGS=mockWeather=true
 
-Runs the app in development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+If REACT_APP_API_BASE is not set or mockWeather=true is present, the app uses mock data.
 
-### `npm test`
+## Architecture
+- src/App.js: main page layout and data orchestration
+- src/components/SearchBar.jsx: city input with validation and ARIA attributes
+- src/components/CurrentWeatherCard.jsx: current conditions summary
+- src/components/ForecastList.jsx: 5-day forecast grid
+- src/services/weatherService.js: API client using fetch, env-configured base URL, mock support
+- src/theme/ThemeProvider.jsx: minimal theme provider applying Ocean Professional palette
+- src/App.css, src/index.css: theme and component styles
 
-Launches the test runner in interactive watch mode.
+## Accessibility Notes
+- Inputs include aria-labels and error messaging with role="alert"
+- Keyboard navigation supported (forms/buttons focusable with visible focus ring)
+- Reduced motion users respected by browser settings
 
-### `npm run build`
+## Error Handling
+- Network and server errors are caught and mapped to friendly messages.
+- No sensitive error details are shown to end users.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Security and Configuration
+- No hardcoded secrets. All configuration via environment variables.
+- Use HTTPS endpoints in production for REACT_APP_API_BASE.
 
-## Customization
+## Backend Integration
+- WeatherService expects endpoints:
+  - GET /weather/current?city=CityName
+  - GET /weather/forecast?city=CityName&days=5
+- Response shape is normalized in the service; non-breaking field name variations are handled.
 
-### Colors
+## Theming
+Ocean Professional palette:
+- Primary #2563EB
+- Secondary/Success #F59E0B
+- Error #EF4444
+- Background #f9fafb
+- Surface #ffffff
+- Text #111827
+With a subtle blue-to-gray gradient used in the header.
 
-The main brand colors are defined as CSS variables in `src/App.css`:
+## Testing
+- npm test to run tests (existing CRA config)
 
-```css
-:root {
-  --kavia-orange: #E87A41;
-  --kavia-dark: #1A1A1A;
-  --text-color: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --border-color: rgba(255, 255, 255, 0.1);
-}
-```
-
-### Components
-
-This template uses pure HTML/CSS components instead of a UI framework. You can find component styles in `src/App.css`. 
-
-Common components include:
-- Buttons (`.btn`, `.btn-large`)
-- Container (`.container`)
-- Navigation (`.navbar`)
-- Typography (`.title`, `.subtitle`, `.description`)
-
-## Learn More
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
