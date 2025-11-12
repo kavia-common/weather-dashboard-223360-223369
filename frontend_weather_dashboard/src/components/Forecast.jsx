@@ -77,12 +77,18 @@ export default function Forecast({ days, loading, error }) {
   }
 
   if (error) {
+    const msg = String(error || '');
+    const hint =
+      /no results|invalid location/i.test(msg)
+        ? 'No forecast found. Try a different city (e.g., "Paris, FR") or coordinates like "48.85,2.35".'
+        : '';
     return (
       <div style={styles.container}>
         <div style={styles.header}>
           <div style={styles.title}>5-day Forecast</div>
         </div>
-        <div style={styles.error} role="alert">{error}</div>
+        <div style={styles.error} role="alert">{msg}</div>
+        {hint && <div style={{ marginTop: 8, color: theme.colors.textMuted }}>{hint}</div>}
       </div>
     );
   }

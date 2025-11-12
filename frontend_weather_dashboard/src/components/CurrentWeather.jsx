@@ -93,11 +93,17 @@ export default function CurrentWeather({ data, loading, error }) {
   }
 
   if (error) {
+    const msg = String(error || '');
+    const hint =
+      /no results|invalid location/i.test(msg)
+        ? 'Try a different city (e.g., "London, UK") or use coordinates like "37.77,-122.42".'
+        : '';
     return (
       <div style={styles.card}>
         <div style={styles.error} role="alert">
-          {error}
+          {msg}
         </div>
+        {hint && <div style={{ marginTop: 8, color: theme.colors.textMuted }}>{hint}</div>}
       </div>
     );
   }

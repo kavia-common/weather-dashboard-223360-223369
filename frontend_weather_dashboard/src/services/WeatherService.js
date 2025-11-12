@@ -3,16 +3,60 @@
 // WeatherService - Handles API communication with weather backend/provider
 //
 
+/**
+ * WeatherService - Handles API communication with weather backend/provider.
+ * Supports querying by:
+ * - city: "/weather?city=London"
+ * - coordinates: "/weather?lat=...&lon=..."
+ * If your backend expects different parameter names (e.g., q/location/zipcode), adjust PARAMS below.
+ */
+
 const API_BASE = process.env.REACT_APP_API_BASE;
 
-// Basic input sanitization to prevent malformed URLs and potential injection
+// Canonical parameter names expected by the backend. Change here if backend differs.
+const PARAMS = {
+  city: 'city', // or 'q' / 'location'
+  lat: 'lat',
+  lon: 'lon',
+};
+
+/**
+ * Basic input sanitization for city names to avoid malformed URLs.
+ * Allows letters, numbers, spaces, commas, hyphens, apostrophes and periods.
+ */
 function sanitizeCity(input) {
   if (typeof input !== 'string') return '';
-  // Trim, collapse spaces, allow letters, spaces, commas, hyphens, and apostrophes
   const cleaned = input.trim().replace(/\s+/g, ' ');
-  // Remove any characters that are not typical in city names
   const safe = cleaned.replace(/[^a-zA-Z\u00C0-\u024F0-9 ,.'-]/g, '');
   return safe.slice(0, 80);
+}
+
+/**
+ * Parse potential coordinate input.
+ * Accepts:
+ * - object: { lat: number|string, lon: number|string }
+ * - string: "lat,lon" (comma separated) or "lat lon"
+ * Returns { lat:number, lon:number } if valid, otherwise null.
+ */
+function parseCoords(input) {
+  // object form
+  if (input && typeof input === 'object' && ('lat' in input || 'lon' in input || 'lng' in input)) {
+    const lat = Number(input.lat);
+    const lon = Number(input.lon ?? input.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+    return null;
+  }
+  // string form: "12.34,56.78" or "12.34 56.78"
+  if (typeof input === 'string') {
+    const s = input.trim();
+    const match = s.match(/^\s*(-?\d+(\.\d+)?)\s*[, ]\s*(-?\d+(\.\d+)?)\s*$/);
+    if (match) {
+      const lat = Number(match[1]);
+      const lon = Number(match[3]);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+    }
+  }
+  return null;
 }
 
 /**
@@ -33,21 +77,50 @@ function buildUrl(path, params = {}) {
   return isAbsolute ? url.toString() : url.toString().replace(window.location.origin, ''); // relative for CRA proxy if configured
 }
 
+/**
+ * Map HTTP errors to user-friendly messages, especially for 400/404 "no results".
+ */
+function toUserError(prefix, res, bodyText) {
+  if (res.status === 404) {
+    return new Error(`${prefix}: no results found (404).`);
+  }
+  if (res.status === 400) {
+    return new Error(`${prefix}: invalid location (400). Please try a city (e.g., "London") or "lat,lon".`);
+  }
+  return new Error(`${prefix} (${res.status}): ${bodyText || res.statusText}`);
+}
+
+/**
+ * Build params from a query which may be a city string or coordinates.
+ */
+function buildLocationParams(query) {
+  const coords = parseCoords(query);
+  if (coords) {
+    return { [PARAMS.lat]: coords.lat, [PARAMS.lon]: coords.lon };
+  }
+  const city = sanitizeCity(typeof query === 'string' ? query : '');
+  if (city) {
+    return { [PARAMS.city]: city };
+  }
+  return null;
+}
+
 // PUBLIC_INTERFACE
-export async function getCurrentWeather(city) {
+export async function getCurrentWeather(query) {
   /**
-   * Fetch current weather for a given city.
+   * Fetch current weather for a given location (city or coordinates).
    * Uses environment-based API base, returns parsed JSON or throws Error with message.
+   * @param {string|{lat:number, lon:number}} query - City name (e.g., "London") or coordinates object/string "lat,lon".
    */
-  const safeCity = sanitizeCity(city);
-  if (!safeCity) throw new Error('Please provide a valid city name.');
+  const params = buildLocationParams(query);
+  if (!params) throw new Error('Please provide a valid city or coordinates (e.g., "37.77,-122.42").');
   try {
-    const res = await fetch(buildUrl('/weather', { city: safeCity }), {
+    const res = await fetch(buildUrl('/weather', params), {
       headers: { 'Content-Type': 'application/json' },
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Failed to fetch current weather (${res.status}): ${text || res.statusText}`);
+      throw toUserError('Failed to fetch current weather', res, text);
     }
     return await res.json();
   } catch (err) {
@@ -56,20 +129,21 @@ export async function getCurrentWeather(city) {
 }
 
 // PUBLIC_INTERFACE
-export async function getForecast(city) {
+export async function getForecast(query) {
   /**
-   * Fetch 5-day forecast for a given city.
+   * Fetch 5-day forecast for a given location (city or coordinates).
    * Returns parsed JSON or throws Error with message.
+   * @param {string|{lat:number, lon:number}} query - City name or coordinates.
    */
-  const safeCity = sanitizeCity(city);
-  if (!safeCity) throw new Error('Please provide a valid city name.');
+  const params = buildLocationParams(query);
+  if (!params) throw new Error('Please provide a valid city or coordinates (e.g., "37.77,-122.42").');
   try {
-    const res = await fetch(buildUrl('/forecast', { city: safeCity }), {
+    const res = await fetch(buildUrl('/forecast', params), {
       headers: { 'Content-Type': 'application/json' },
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Failed to fetch forecast (${res.status}): ${text || res.statusText}`);
+      throw toUserError('Failed to fetch forecast', res, text);
     }
     return await res.json();
   } catch (err) {

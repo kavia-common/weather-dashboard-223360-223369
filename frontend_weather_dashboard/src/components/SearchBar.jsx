@@ -22,6 +22,7 @@ export default function SearchBar({ defaultCity = '', onSearch }) {
     const value = (debounced || query || '').trim();
     if (!value) return;
     if (typeof onSearch === 'function') {
+      // Pass coordinate string as-is if it looks like "lat,lon"
       onSearch(value);
     }
   };

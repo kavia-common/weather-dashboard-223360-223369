@@ -31,9 +31,14 @@ Other environment variables may exist in this container but are not required for
 ## Usage
 
 - Enter a city name in the search bar and press Enter or click Search.
+  - Examples: "London", "London, UK", "San Francisco"
+- Coordinates are also supported:
+  - Enter as "lat,lon" (e.g., "37.77,-122.42")
 - The app calls:
-  - `${REACT_APP_API_BASE}/weather?city={CITY}`
-  - `${REACT_APP_API_BASE}/forecast?city={CITY}`
+  - City: `${REACT_APP_API_BASE}/weather?city={CITY}` and `${REACT_APP_API_BASE}/forecast?city={CITY}`
+  - Coordinates: `${REACT_APP_API_BASE}/weather?lat={LAT}&lon={LON}` and `${REACT_APP_API_BASE}/forecast?lat={LAT}&lon={LON}`
+- If your backend expects different parameter names (e.g., `q` instead of `city`), update `PARAMS` in `src/services/WeatherService.js`.
+- The UI shows clear messages for invalid locations (400) and no results (404), with suggestions to try another query.
 - The health indicator attempts to ping `${REACT_APP_API_BASE}/health` and handles missing endpoints gracefully.
 
 ## Theming

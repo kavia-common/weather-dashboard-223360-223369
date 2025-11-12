@@ -100,9 +100,11 @@ function App() {
   }, []);
 
   const onSearch = (q) => {
-    if (!q || q.trim().length === 0) return;
-    setCity(q.trim());
-    load(q.trim());
+    // Accept either city string or "lat,lon" coordinate string or object {lat, lon}
+    const value = typeof q === 'string' ? q.trim() : q;
+    if (!value || (typeof value === 'string' && value.length === 0)) return;
+    if (typeof value === 'string') setCity(value);
+    load(value);
   };
 
   const styles = useMemo(
