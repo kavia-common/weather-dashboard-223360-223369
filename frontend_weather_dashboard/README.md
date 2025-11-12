@@ -1,82 +1,70 @@
-# Lightweight React Template for KAVIA
+# Weather Dashboard - Frontend
 
-This project provides a minimal React template with a clean, modern UI and minimal dependencies.
+A modern React weather dashboard with Ocean Professional theme. Features a debounced city search, current weather panel, 5-day forecast cards, loading and error states, and an API health indicator.
 
-## Features
+## Prerequisites
 
-- **Lightweight**: No heavy UI frameworks - uses only vanilla CSS and React
-- **Modern UI**: Clean, responsive design with KAVIA brand styling
-- **Fast**: Minimal dependencies for quick loading times
-- **Simple**: Easy to understand and modify
+- Node.js 16+ and npm
+- A weather-compatible backend or proxy reachable via `REACT_APP_API_BASE`
 
-## Getting Started
+## Environment Variables
 
-In the project directory, you can run:
+Create a `.env` file (see `.env.example`):
 
-### `npm start`
+- `REACT_APP_API_BASE` (required): Base URL for API calls (e.g., http://localhost:8080 or /api). No trailing slash recommended.
+- `REACT_APP_DEFAULT_CITY` (optional): Default city to load on startup (e.g., San Francisco).
 
-Runs the app in development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Other environment variables may exist in this container but are not required for this UI to run.
 
-### `npm test`
+## Run locally
 
-Launches the test runner in interactive watch mode.
+1. Install dependencies
+   ```
+   npm install
+   ```
+2. Start the app
+   ```
+   npm start
+   ```
+3. Open http://localhost:3000
 
-### `npm run build`
+## Usage
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- Enter a city name in the search bar and press Enter or click Search.
+- The app calls:
+  - `${REACT_APP_API_BASE}/weather?city={CITY}`
+  - `${REACT_APP_API_BASE}/forecast?city={CITY}`
+- The health indicator attempts to ping `${REACT_APP_API_BASE}/health` and handles missing endpoints gracefully.
 
-## Customization
+## Theming
 
-### Colors
+Ocean Professional color tokens are defined in:
+- `src/theme/theme.js`
+- `src/index.css` and `src/App.css` provide base CSS variables and utilities.
 
-The main brand colors are defined as CSS variables in `src/App.css`:
+Colors:
+- Primary: `#2563EB`
+- Secondary: `#F59E0B`
+- Error: `#EF4444`
+- Background: `#f9fafb`
+- Surface: `#ffffff`
+- Text: `#111827`
 
-```css
-:root {
-  --kavia-orange: #E87A41;
-  --kavia-dark: #1A1A1A;
-  --text-color: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --border-color: rgba(255, 255, 255, 0.1);
-}
+## Accessibility
+
+- Inputs and buttons include aria labels.
+- Live regions update API health.
+
+## Notes
+
+- Do not hardcode API keys in the client.
+- The WeatherService reads from `process.env.REACT_APP_API_BASE` and builds relative URLs compatible with CRA proxy.
+- The app expects reasonable JSON shapes for current weather and forecast; it maps defensively to common fields.
+
+## Build
+
+```
+npm run build
 ```
 
-### Components
-
-This template uses pure HTML/CSS components instead of a UI framework. You can find component styles in `src/App.css`. 
-
-Common components include:
-- Buttons (`.btn`, `.btn-large`)
-- Container (`.container`)
-- Navigation (`.navbar`)
-- Typography (`.title`, `.subtitle`, `.description`)
-
-## Learn More
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Outputs production build to `build/`.
