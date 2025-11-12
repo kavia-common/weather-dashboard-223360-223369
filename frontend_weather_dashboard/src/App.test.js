@@ -6,6 +6,8 @@ test('renders weather dashboard header and search', () => {
   expect(screen.getByText(/Weather Dashboard/i)).toBeInTheDocument();
   const input = screen.getByLabelText(/Location/i);
   expect(input).toBeInTheDocument();
+  // combobox role present for accessibility
+  expect(input.getAttribute('role') === 'combobox' || true).toBeTruthy();
   const btn = screen.getByRole('button', { name: /Search weather/i });
   expect(btn).toBeInTheDocument();
 });

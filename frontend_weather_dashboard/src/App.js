@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './theme.css';
 import './index.css';
 import { fetchWeather, fetchWeatherByCoords, getFeatureFlags } from './services/apiClient';
+import { geocodeQuery } from './services/geocodeClient';
 
 // Helpers
 function formatDay(dateStr) {
@@ -33,6 +34,12 @@ export default function App() {
   const [notice, setNotice] = useState(
     'We use your device location only to fetch local weather. Your precise coordinates are not stored.'
   );
+  const [suggestions, setSuggestions] = useState([]); // geocode results
+  const [suggestError, setSuggestError] = useState('');
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef(null);
+  const listboxId = 'geocode-suggestions';
   const flags = useMemo(() => getFeatureFlags(), []);
 
   const apiBase = process.env.REACT_APP_API_BASE || process.env.REACT_APP_BACKEND_URL || '';
@@ -115,6 +122,13 @@ export default function App() {
       setState('error');
       return;
     }
+    // If there is a highlighted suggestion, use it as selection
+    if (activeIndex >= 0 && suggestions[activeIndex]) {
+      const sel = suggestions[activeIndex];
+      setShowSuggest(false);
+      handleSelectSuggestion(sel);
+      return;
+    }
     load(query.trim());
   }
 
@@ -164,6 +178,60 @@ export default function App() {
 
   const usingMock = flags.MOCK_WEATHER || !apiBase;
 
+  // Debounced geocode lookup
+  useEffect(() => {
+    let cancelled = false;
+    const v = query.trim();
+    if (!v) {
+      setSuggestions([]);
+      setSuggestError('');
+      return () => {};
+    }
+
+    const isLatLon = /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(v);
+    if (isLatLon) {
+      // don't geocode numeric coordinates
+      setSuggestions([]);
+      setSuggestError('');
+      return () => {};
+    }
+
+    const handle = setTimeout(async () => {
+      try {
+        const results = await geocodeQuery(v);
+        if (cancelled) return;
+        setSuggestions(results);
+        setActiveIndex(results.length ? 0 : -1);
+        setSuggestError(results.length ? '' : 'No matching cities found.');
+        setShowSuggest(true);
+      } catch (e) {
+        if (cancelled) return;
+        setSuggestions([]);
+        setActiveIndex(-1);
+        setSuggestError('Unable to fetch suggestions. Please try again.');
+        setShowSuggest(true);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [query]);
+
+  function handleSelectSuggestion(sel) {
+    if (!sel) return;
+    // Persist last selected city label
+    try {
+      localStorage.setItem('lastCitySelection', JSON.stringify(sel));
+      localStorage.setItem('lastLocation', JSON.stringify({ type: 'search', value: sel.label }));
+    } catch {
+      // ignore storage failures
+    }
+    setQuery(sel.label);
+    loadByCoords(sel.lat, sel.lon);
+  }
+
   return (
     <div>
       <div className="container">
@@ -174,15 +242,125 @@ export default function App() {
           </div>
 
           <form className="search" onSubmit={onSubmit} role="search" aria-label="Search weather by location">
-            <input
-              aria-label="Location"
-              placeholder="Search city or 'lat,lon'"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              inputMode="text"
-              autoCorrect="off"
-              autoCapitalize="none"
-            />
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                ref={inputRef}
+                aria-label="Location"
+                placeholder="Search city or 'lat,lon'"
+                value={query}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setQuery(v);
+                  setSuggestError('');
+                  setShowSuggest(true);
+                }}
+                onFocus={() => {
+                  if (suggestions.length) setShowSuggest(true);
+                }}
+                onKeyDown={(e) => {
+                  if (!showSuggest) return;
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setActiveIndex((prev) => {
+                      const next = Math.min(prev + 1, suggestions.length - 1);
+                      return next;
+                    });
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setActiveIndex((prev) => Math.max(prev - 1, 0));
+                  } else if (e.key === 'Enter') {
+                    if (activeIndex >= 0 && suggestions[activeIndex]) {
+                      e.preventDefault();
+                      const sel = suggestions[activeIndex];
+                      setShowSuggest(false);
+                      handleSelectSuggestion(sel);
+                    }
+                  } else if (e.key === 'Escape') {
+                    setShowSuggest(false);
+                    setActiveIndex(-1);
+                  }
+                }}
+                aria-autocomplete="list"
+                aria-controls={listboxId}
+                aria-expanded={showSuggest}
+                role="combobox"
+                inputMode="text"
+                autoCorrect="off"
+                autoCapitalize="none"
+              />
+              {showSuggest && (
+                <div
+                  id={listboxId}
+                  role="listbox"
+                  aria-label="City suggestions"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    background: 'var(--surface)',
+                    border: '1px solid rgba(17,24,39,0.08)',
+                    borderRadius: '12px',
+                    marginTop: 6,
+                    boxShadow: 'var(--shadow)',
+                    zIndex: 20,
+                    maxHeight: 300,
+                    overflowY: 'auto',
+                  }}
+                >
+                  {suggestError && (
+                    <div
+                      role="alert"
+                      style={{ padding: '10px 12px', color: 'var(--error)', fontSize: 13 }}
+                    >
+                      {suggestError}
+                    </div>
+                  )}
+                  {!suggestError && suggestions.length === 0 && (
+                    <div style={{ padding: '10px 12px', fontSize: 13, color: 'var(--muted)' }}>
+                      Start typing a city name…
+                    </div>
+                  )}
+                  {!suggestError &&
+                    suggestions.length > 0 &&
+                    suggestions.map((s, i) => (
+                      <div
+                        key={s.id}
+                        role="option"
+                        aria-selected={i === activeIndex}
+                        onMouseDown={(e) => {
+                          // prevent blur before click
+                          e.preventDefault();
+                        }}
+                        onClick={() => {
+                          handleSelectSuggestion(s);
+                          setShowSuggest(false);
+                        }}
+                        onMouseEnter={() => setActiveIndex(i)}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '10px 12px',
+                          cursor: 'pointer',
+                          background: i === activeIndex ? 'rgba(37,99,235,0.06)' : 'transparent',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{s.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                            {s.state ? `${s.state}, ` : ''}
+                            {s.country}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          {s.lat.toFixed(2)}, {s.lon.toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
             <button type="submit" className="btn" aria-label="Search weather">
               Search
             </button>
