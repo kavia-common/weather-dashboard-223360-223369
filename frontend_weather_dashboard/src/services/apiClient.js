@@ -1,9 +1,9 @@
 //
+//
 // Lightweight API client for the weather dashboard
 // Routes all external calls through this client and reads configuration
 // from environment variables to avoid hardcoded secrets or URLs.
 //
-
 // PUBLIC_INTERFACE
 export function getFeatureFlags() {
   /** Returns parsed feature flags from REACT_APP_FEATURE_FLAGS (comma-separated key=value). */
@@ -24,6 +24,16 @@ const API_BASE =
   process.env.REACT_APP_API_BASE ||
   process.env.REACT_APP_BACKEND_URL ||
   ''; // Intentionally empty if not configured
+
+/**
+ * Safely join base URL with a path (with optional query).
+ * Avoids double slashes and missing slash between host and path.
+ */
+function buildUrl(pathWithQuery) {
+  const base = (API_BASE || '').replace(/\/$/, '');
+  const suffix = pathWithQuery.startsWith('/') ? pathWithQuery : `/${pathWithQuery}`;
+  return `${base}${suffix}`;
+}
 
 // PUBLIC_INTERFACE
 export async function fetchWeather(query) {
@@ -47,10 +57,36 @@ export async function fetchWeather(query) {
     return mockWeather(query);
   }
 
-  const url = `${API_BASE.replace(/\/$/, '')}/weather?query=${encodeURIComponent(
-    query
-  )}`;
+  const url = buildUrl(`/weather?query=${encodeURIComponent(query)}`);
+  return await doFetchAndNormalize(url, query);
+}
 
+// PUBLIC_INTERFACE
+export async function fetchWeatherByCoords(lat, lon) {
+  /**
+   * Fetches weather using latitude/longitude coordinates.
+   * Uses endpoint: /weather?lat=..&lon=..
+   * Normalizes to standard format.
+   *
+   * @param {number|string} lat - Latitude
+   * @param {number|string} lon - Longitude
+   * @returns {Promise<object>} Normalized weather payload
+   */
+  const flags = getFeatureFlags();
+  const useMock = flags.MOCK_WEATHER || !API_BASE;
+
+  if (useMock) {
+    await new Promise((r) => setTimeout(r, 600));
+    const seed = `geo:${Number(lat).toFixed(3)},${Number(lon).toFixed(3)}`;
+    const payload = mockWeather(seed);
+    return { ...payload, location: payload.location || 'My Location' };
+  }
+
+  const url = buildUrl(`/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
+  return await doFetchAndNormalize(url, `geo:${lat},${lon}`);
+}
+
+async function doFetchAndNormalize(url, seedForErrorContext) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -77,6 +113,7 @@ export async function fetchWeather(query) {
     // Avoid logging sensitive details; surface friendly message.
     const error = new Error('Unable to fetch weather. Please try again.');
     error.cause = err?.message || 'NETWORK_OR_BACKEND_ERROR';
+    error.context = seedForErrorContext;
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -150,8 +187,8 @@ function mockWeather(query) {
   const forecast = Array.from({ length: 5 }).map((_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() + i + 1);
-    const min = baseTemp + ((i % 2 === 0) ? -3 : -1);
-    const max = baseTemp + ((i % 2 === 0) ? 2 : 4);
+    const min = baseTemp + (i % 2 === 0 ? -3 : -1);
+    const max = baseTemp + (i % 2 === 0 ? 2 : 4);
     return {
       date: d.toISOString().split('T')[0],
       min,
@@ -166,8 +203,8 @@ function mockWeather(query) {
     current: {
       temp: baseTemp,
       condition: conditions[idx],
-      humidity: 40 + (idx * 8) % 50,
-      wind: 5 + (idx * 2) % 15,
+      humidity: 40 + ((idx * 8) % 50),
+      wind: 5 + ((idx * 2) % 15),
       icon: icons[idx],
     },
     forecast,

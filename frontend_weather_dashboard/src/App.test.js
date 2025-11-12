@@ -10,6 +10,12 @@ test('renders weather dashboard header and search', () => {
   expect(btn).toBeInTheDocument();
 });
 
+test('renders detect my location control', () => {
+  render(<App />);
+  const detectBtn = screen.getByRole('button', { name: /Detect my location/i });
+  expect(detectBtn).toBeInTheDocument();
+});
+
 test('allows searching for a city', () => {
   render(<App />);
   const input = screen.getByLabelText(/Location/i);
