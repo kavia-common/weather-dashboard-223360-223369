@@ -130,47 +130,123 @@ function normalizeWeatherPayload(data) {
   // Example mapping if backend uses different keys
   const location =
     data?.location?.name ||
+    data?.name ||
     data?.city ||
     data?.query ||
+    data?.location ||
     'Unknown Location';
 
-  const currentSource = data?.current || data?.now || {};
-  const forecastSource = data?.forecast || data?.daily || [];
+  // support various current keys: current, now, data.current_weather, weather, conditions
+  const currentSource =
+    data?.current ||
+    data?.now ||
+    data?.current_weather ||
+    data?.weather ||
+    data?.conditions ||
+    (Array.isArray(data?.data) && data.data[0]) ||
+    {};
+
+  // normalize wind and humidity name variants
+  const windValue =
+    typeof currentSource.wind === 'number'
+      ? currentSource.wind
+      : typeof currentSource.wind_speed === 'number'
+      ? currentSource.wind_speed
+      : typeof currentSource.windSpeed === 'number'
+      ? currentSource.windSpeed
+      : 0;
+
+  const humidityValue =
+    typeof currentSource.humidity === 'number'
+      ? currentSource.humidity
+      : typeof currentSource.rh === 'number'
+      ? currentSource.rh
+      : typeof currentSource.humidity_pct === 'number'
+      ? currentSource.humidity_pct
+      : 0;
+
+  const tempValue =
+    typeof currentSource.temp === 'number'
+      ? currentSource.temp
+      : typeof currentSource.temperature === 'number'
+      ? currentSource.temperature
+      : typeof currentSource.temp_c === 'number'
+      ? currentSource.temp_c
+      : typeof currentSource.temp_f === 'number'
+      ? ((currentSource.temp_f - 32) * 5) / 9
+      : 0;
+
+  const conditionValue =
+    currentSource.condition ||
+    currentSource.summary ||
+    currentSource.description ||
+    (typeof currentSource.text === 'string' ? currentSource.text : 'Unknown');
 
   const current = {
-    temp:
-      typeof currentSource.temp === 'number'
-        ? currentSource.temp
-        : currentSource.temperature ?? 0,
-    condition:
-      currentSource.condition ||
-      currentSource.summary ||
-      'Unknown',
-    humidity:
-      typeof currentSource.humidity === 'number'
-        ? currentSource.humidity
-        : 0,
-    wind:
-      typeof currentSource.wind === 'number'
-        ? currentSource.wind
-        : currentSource.wind_speed ?? 0,
+    temp: tempValue,
+    condition: conditionValue,
+    humidity: humidityValue,
+    wind: windValue,
     icon: currentSource.icon || '⛅️',
   };
 
+  // Forecast: support forecast, daily, data.daily, list (OpenWeather)
+  const forecastSource =
+    data?.forecast ||
+    data?.daily ||
+    data?.data?.daily ||
+    data?.list ||
+    [];
+
   const forecast = Array.isArray(forecastSource)
-    ? forecastSource.slice(0, 5).map((d, idx) => ({
-        date: d.date || d.dt || `Day ${idx + 1}`,
-        min:
+    ? forecastSource.slice(0, 5).map((d, idx) => {
+        // date handling
+        const dateVal =
+          d.date ||
+          d.dt ||
+          d.datetime ||
+          (typeof d.time === 'number' ? new Date(d.time * 1000).toISOString().split('T')[0] : `Day ${idx + 1}`);
+
+        // temperature min/max variants
+        const minVal =
           typeof d.min === 'number'
             ? d.min
-            : d.temp?.min ?? 0,
-        max:
+            : typeof d.temp?.min === 'number'
+            ? d.temp.min
+            : typeof d.temperature?.min === 'number'
+            ? d.temperature.min
+            : 0;
+
+        const maxVal =
           typeof d.max === 'number'
             ? d.max
-            : d.temp?.max ?? 0,
-        condition: d.condition || d.summary || '—',
-        icon: d.icon || '🌤️',
-      }))
+            : typeof d.temp?.max === 'number'
+            ? d.temp.max
+            : typeof d.temperature?.max === 'number'
+            ? d.temperature.max
+            : 0;
+
+        // condition/icon variants
+        const condVal =
+          d.condition ||
+          d.summary ||
+          (Array.isArray(d.weather) && d.weather[0]?.description) ||
+          d.description ||
+          '—';
+
+        const iconVal =
+          d.icon ||
+          (Array.isArray(d.weather) && d.weather[0]?.icon) ||
+          '🌤️';
+
+        return {
+          date: typeof dateVal === 'number' ? new Date(dateVal * 1000).toISOString().split('T')[0] : String(dateVal),
+          min: minVal,
+          max: maxVal,
+          condition: condVal,
+          icon: iconVal,
+        };
+      })
     : [];
 
   return { location, current, forecast };
